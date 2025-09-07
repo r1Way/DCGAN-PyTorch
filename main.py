@@ -8,158 +8,152 @@ from Discriminator import Discriminator
 from torchvision import transforms
 import csv
 
-# 固定参数
-batch_size = 128
-image_size = 64
-nc = 3
-nz = 100
-ngf = 64
-ndf = 64
-num_epochs = 10
-lr = 0.0002
-beta1 = 0.5
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', default='faces', help='faces')
-parser.add_argument('--dataroot', default='./faces/faces', help='path to the root of dataset')
-parser.add_argument('--workers', type=int, default=2, help='number of worker threads for loading the data with Dataloader')
-parser.add_argument('--batch_size', type=int, default=batch_size, help='batch size used in training')
-parser.add_argument('--img_size', type=int, default=image_size, help='the height / width of the input images used for training')
-parser.add_argument('--nz', type=int, default=nz, help='size of the latent vector z')
-parser.add_argument('--ngf', type=int, default=ngf, help='size of feature maps in G')
-parser.add_argument('--ndf', type=int, default=ndf, help='size of feature maps in D')
-parser.add_argument('--nepoch', type=int, default=num_epochs, help='number of epochs to run')
-parser.add_argument('--lr', type=float, default=lr, help='learning rate for training')
-parser.add_argument('--beta1', type=float, default=beta1, help='beta1 hyperparameter for Adam optimizers')
-parser.add_argument('--cuda', action='store_true', help='enables cuda')
-parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs available')
-parser.add_argument('--dev', type=int, default=0, help='which CUDA device to use')
-parser.add_argument('--netG', default='', help="path to netG (to continue training)")
-parser.add_argument('--netD', default='', help="path to netD (to continue training)")
-parser.add_argument('--results', default='./results', help='folder to store images and model checkpoints')
-parser.add_argument('--manualSeed', type=int, help='manual seed')
-opt = parser.parse_args()
-print(opt)
-
-"""
-Create a folder to store images and model checkpoints
-"""
-if not os.path.exists(opt.results):
-    os.mkdir(opt.results)
-
-"""
-Set random seed for reproducibility.
-"""
-if opt.manualSeed is None:
-    opt.manualSeed = random.randint(1, 10000) # use if you want new results
-print("Random Seed: ", opt.manualSeed)
-random.seed(opt.manualSeed)
-#Sets the seed for generating random numbers. Returns a torch._C.Generator object.
-torch.manual_seed(opt.manualSeed)
-
-"""
-Use GPUs if available.
-"""
-if torch.cuda.is_available() and not opt.cuda:
-    print("WARNING: You have a CUDA device, so you should probably run with --cuda")
-device = torch.device("cuda:0" if opt.cuda else "cpu")
-torch.cuda.set_device(opt.dev)
-
-"""
-Create the dataset.
-"""
-# 只支持 faces 数据集
-# 数据增强操作，参考 MindSpore 代码
-transform = transforms.Compose([
-    transforms.Resize(image_size),           # Resize
-    transforms.CenterCrop(image_size),       # CenterCrop
-    transforms.ToTensor(),                   # HWC2CHW + [0,1]
-    # 去掉 Normalize，仅归一化到 [0,1]
-])
-
-# 创建数据集
-dataset = torchvision.datasets.ImageFolder(
-    root=opt.dataroot,
-    transform=transform
-)
-nc = 3
-
-dataset = torch.utils.data.DataLoader(
-    dataset,
-    batch_size=opt.batch_size,
-    shuffle=True,
-    num_workers=int(opt.workers)
-)
-
-"""
-Custom weights initialization called on netG and netD.
-All model weights shall be randomly initialized from a Normal distribution with mean=0, stdev=0.02. 
-Note We set bias=False in both Conv2d and ConvTranspose2d.
-"""
-def weights_init(input):
-    classname = input.__class__.__name__
-    if classname.find('Conv') != -1:
-        input.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        input.weight.data.normal_(1.0, 0.02)
-        input.bias.data.fill_(0)
-
-'''
-Create a generator and apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
-'''
-netG = Generator(nz=opt.nz, ngf=opt.ngf, nc=nc, ngpu=opt.ngpu).to(device)
-netG.apply(weights_init)
-'''
-Load the trained netG to continue training if it exists.
-'''
-if opt.netG != '':
-    netG.load_state_dict(torch.load(opt.netG))
-print(netG)
-
-'''
-Create a discriminator and apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
-'''
-netD = Discriminator(nc=nc, ndf=opt.ndf, ngpu=opt.ngpu).to(device)
-netD.apply(weights_init)
-'''
-Load the trained netD to continue training if it exists.
-'''
-if opt.netD != '':
-    netD.load_state_dict(torch.load(opt.netD))
-print(netD)
-
-"""
-A Binary Cross Entropy loss is used and two Adam optimizers are responsible for updating 
- netG and netD, respectively. 
-"""
-loss = torch.nn.BCELoss()
-optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-
-#Create batch of latent vectors that we will use to visualize
- #the progression of the generator.
-fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
-#Establish convention for real and fake labels during training.
-real_label = 1
-fake_label = 0
-
-"""
-Training.
-"""
-#This line may increase the training speed a bit.
-torch.backends.cudnn.benchmark = True
-
-# 新增：用于收集损失的列表
-G_losses = []
-D_losses = []
-
-# 新增：定义csv文件路径
-loss_csv_path = os.path.join(opt.results, "losses.csv")
 
 def main():
+    # 固定参数
+    batch_size = 128
+    image_size = 64
+    nc = 3
+    nz = 100
+    ngf = 64
+    ndf = 64
+    num_epochs = 10
+    lr = 0.0002
+    beta1 = 0.5
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset', default='faces', help='faces')
+    parser.add_argument('--dataroot', default='./faces/faces', help='path to the root of dataset')
+    parser.add_argument('--workers', type=int, default=2, help='number of worker threads for loading the data with Dataloader')
+    parser.add_argument('--batch_size', type=int, default=batch_size, help='batch size used in training')
+    parser.add_argument('--img_size', type=int, default=image_size, help='the height / width of the input images used for training')
+    parser.add_argument('--nz', type=int, default=nz, help='size of the latent vector z')
+    parser.add_argument('--ngf', type=int, default=ngf, help='size of feature maps in G')
+    parser.add_argument('--ndf', type=int, default=ndf, help='size of feature maps in D')
+    parser.add_argument('--nepoch', type=int, default=num_epochs, help='number of epochs to run')
+    parser.add_argument('--lr', type=float, default=lr, help='learning rate for training')
+    parser.add_argument('--beta1', type=float, default=beta1, help='beta1 hyperparameter for Adam optimizers')
+    parser.add_argument('--cuda', action='store_true', help='enables cuda')
+    parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs available')
+    parser.add_argument('--dev', type=int, default=0, help='which CUDA device to use')
+    parser.add_argument('--netG', default='', help="path to netG (to continue training)")
+    parser.add_argument('--netD', default='', help="path to netD (to continue training)")
+    parser.add_argument('--results', default='./results', help='folder to store images and model checkpoints')
+    opt = parser.parse_args()
+    print(opt)
+
     """
-    主训练循环
+    Create a folder to store images and model checkpoints
     """
+    if not os.path.exists(opt.results):
+        os.mkdir(opt.results)
+
+    # 固定随机种子
+    manualSeed = 42
+    print("Random Seed: ", manualSeed)
+    random.seed(manualSeed)
+    torch.manual_seed(manualSeed)
+
+    """
+    Use GPUs if available.
+    """
+    if torch.cuda.is_available() and not opt.cuda:
+        print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+    device = torch.device("cuda:0" if opt.cuda else "cpu")
+    torch.cuda.set_device(opt.dev)
+
+    """
+    Create the dataset.
+    """
+    # 只支持 faces 数据集
+    # 数据增强操作，参考 MindSpore 代码
+    transform = transforms.Compose([
+        transforms.Resize(image_size),           # Resize
+        transforms.CenterCrop(image_size),       # CenterCrop
+        transforms.ToTensor(),                   # HWC2CHW + [0,1]
+        # 去掉 Normalize，仅归一化到 [0,1]
+    ])
+
+    # 创建数据集
+    dataset = torchvision.datasets.ImageFolder(
+        root=opt.dataroot,
+        transform=transform
+    )
+    nc = 3
+
+    dataset = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=opt.batch_size,
+        shuffle=True,
+        num_workers=int(opt.workers)
+    )
+
+    """
+    Custom weights initialization called on netG and netD.
+    All model weights shall be randomly initialized from a Normal distribution with mean=0, stdev=0.02. 
+    Note We set bias=False in both Conv2d and ConvTranspose2d.
+    """
+    def weights_init(input):
+        classname = input.__class__.__name__
+        if classname.find('Conv') != -1:
+            input.weight.data.normal_(0.0, 0.02)
+        elif classname.find('BatchNorm') != -1:
+            input.weight.data.normal_(1.0, 0.02)
+            input.bias.data.fill_(0)
+
+    '''
+    Create a generator and apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
+    '''
+    netG = Generator(nz=opt.nz, ngf=opt.ngf, nc=nc, ngpu=opt.ngpu).to(device)
+    netG.apply(weights_init)
+    '''
+    Load the trained netG to continue training if it exists.
+    '''
+    if opt.netG != '':
+        netG.load_state_dict(torch.load(opt.netG))
+    print(netG)
+
+    '''
+    Create a discriminator and apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
+    '''
+    netD = Discriminator(nc=nc, ndf=opt.ndf, ngpu=opt.ngpu).to(device)
+    netD.apply(weights_init)
+    '''
+    Load the trained netD to continue training if it exists.
+    '''
+    if opt.netD != '':
+        netD.load_state_dict(torch.load(opt.netD))
+    print(netD)
+
+    """
+    A Binary Cross Entropy loss is used and two Adam optimizers are responsible for updating 
+     netG and netD, respectively. 
+    """
+    loss = torch.nn.BCELoss()
+    optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+    optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+
+    #Create batch of latent vectors that we will use to visualize
+     #the progression of the generator.
+    fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
+    #Establish convention for real and fake labels during training.
+    real_label = 1
+    fake_label = 0
+
+    """
+    Training.
+    """
+    #This line may increase the training speed a bit.
+    torch.backends.cudnn.benchmark = True
+
+    # 新增：用于收集损失的列表
+    G_losses = []
+    D_losses = []
+
+    # 新增：定义csv文件路径
+    loss_csv_path = os.path.join(opt.results, "losses.csv")
+
     print("Starting Training Loop...")
     for epoch in range(opt.nepoch):
         print(f"Epoch [{epoch+1}/{opt.nepoch}]")

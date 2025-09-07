@@ -1,48 +1,101 @@
-# Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks(DCGAN)
--------------------------------------------------
-## Introduction
- * The code is adapted from the PyTorch documentation examples:<br>
-<https://github.com/pytorch/examples/tree/master/dcgan> <br>
- * The file download_lsun.py comes from a nice repository for downloading LSUN dataset:<br>
-<https://github.com/fyu/lsun> <br>
+# DCGAN-PyTorch 项目说明
 
- * I have added massive comments for the code. Hope it beneficial for understanding GANs/DCGANs, especially for a beginner.
+## 项目简介
 
-## Environment & Requirements
-* CentOS Linux release 7.2.1511 (Core)<br>
-* python 3.6.5<br>
-* pytorch  1.0.0<br>
-* torchvision<br>
-* argparse<br>
-* os<br>
-* random<br>
-* subprocess<br>
-* urllib
+本项目实现了基于 PyTorch 的深度卷积生成对抗网络（DCGAN），用于无监督学习和图像生成。代码结构清晰，适合 GAN/深度学习初学者学习和实验。项目代码基于[代码原作者仓库](https://github.com/gxwangupc/DCGAN-PyTorch)，进行修改。
+数据源采用[70,171 张动漫头像图片](https://download.mindspore.cn/dataset/Faces/faces.zip)，图片大小均为 96\*96。
 
-## Usage
-### Train DCGAN with MNIST:<br>
+## 主要功能
 
-    python3 main.py --dataset mnist --cuda
-Two folders will be created, i.e., `./data` & `./results`. The `./data` folder stores dataset. <br>
-The `./results` folder stores the generated images and the trained models.<br> 
-You can also use cifar10, lsun, imagenet, randomly generated fake data, etc.
-### Download lsun dataset:<br>
+- 支持人脸数据集（faces）训练和测试
+- 训练过程自动保存模型和生成图片
+- 损失曲线自动保存并可视化
+- 固定随机种子，保证实验可复现
+- 支持多进程数据加载加速训练
 
-    python3 download_lsun.py --category bedroom 
-Download data for bedroom and save it to ./data.<br>
-By replacing the option of `--category`, you can download data of each category in LSUN as well.<br>
-    ```
-    python3 download_lsun.py 
-    ```
-    <br>
-Download the whole data set.<br> 
+## 环境
 
-## NOTE
- * The DCGAN architecture is a relatively primary version. Now there exists some new modifications.<br> 
- * The batch_size, size of feature maps of both G and D are all set to 64, different from that in the paper (128).<br>
- * With above hyperparameters set to 128, the model confronts gradient vanishing. Hope someone help me with it.
- 
-## References 
-1. PyTorch documentation
-2. <https://github.com/pytorch/examples/tree/master/dcgan> <br>
-3. <https://github.com/fyu/lsun> <br>
+- Python 3.11.11
+- PyTorch
+- torchvision
+- matplotlib
+- 其他依赖见 environment.yml
+
+## 目录结构
+
+```
+DCGAN-PyTorch/
+├── main.py                # 主训练脚本
+├── test_main.py           # 测试脚本
+├── Generator.py           # 生成器网络
+├── Discriminator.py       # 判别器网络
+├── plot_loss.py           # 损失曲线可视化
+├── download_lsun.py       # LSUN数据集下载工具(原仓库数据集代码，本实验并不使用)
+├── faces/                 # 人脸图片数据集（需自行准备）
+├── results/               # 训练结果（模型和图片）
+├── .gitignore             # Git忽略配置
+└── README.md              # 项目说明
+└── environment.yml        # 环境配置文件
+```
+
+## 快速开始
+
+### 1. 数据准备
+
+将[动漫头像](https://download.mindspore.cn/dataset/Faces/faces.zip)按如下结构放置（每个类别一个子文件夹）：
+
+```
+faces/
+└── faces/
+    └── class1/
+        ├── 0.jpg
+        ├── 1.jpg
+        └── ...
+```
+
+### 2. 测试环境
+
+```bash
+python test_main.py
+```
+
+- 仅用部分数据进行快速测试。
+
+### 3. 训练模型
+
+```bash
+python main.py
+```
+
+- 训练结果和模型会保存在 `./results` 目录。
+
+### 4. 可视化损失曲线
+
+```bash
+python plot_loss.py
+```
+
+- 生成 `results/loss_curve.png`。
+
+## 参数说明（main.py）
+
+- `--dataroot` 数据集根目录
+- `--batch_size` 批大小（默认 128）
+- `--img_size` 输入图片尺寸（默认 64）
+- `--nepoch` 训练轮数（默认 10）
+- `--cuda` 使用 GPU 训练
+- 其他参数见 main.py 注释
+
+## 复现性说明
+
+- 项目已固定随机种子（42），保证每次运行结果一致。
+- 多进程数据加载不会影响训练结果。
+
+## 备注
+
+- faces.zip 等大文件未纳入版本控制，请自行准备数据集。
+- 如需扩展到其他数据集或网络结构，可参考 main.py 代码结构进行修改。
+
+---
+
+如有问题或建议，欢迎 issue 或 PR！
