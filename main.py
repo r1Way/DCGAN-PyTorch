@@ -33,7 +33,7 @@ parser.add_argument('--lr', type=float, default=lr, help='learning rate for trai
 parser.add_argument('--beta1', type=float, default=beta1, help='beta1 hyperparameter for Adam optimizers')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs available')
-parser.add_argument('--dev', type=int, default=1, help='which CUDA device to use')
+parser.add_argument('--dev', type=int, default=0, help='which CUDA device to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 parser.add_argument('--results', default='./results', help='folder to store images and model checkpoints')
@@ -156,112 +156,125 @@ D_losses = []
 # 新增：定义csv文件路径
 loss_csv_path = os.path.join(opt.results, "losses.csv")
 
-print("Starting Training Loop...")
-for epoch in range(opt.nepoch):
-    for i, data in enumerate(dataset, 0):
-        """
-        (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
-        """
-        '''
-        Train with real batch.
-        '''
-        netD.zero_grad()
-        #Format batch
-        real_cpu = data[0].to(device)
-        batch_size = real_cpu.size(0)
-        label = torch.full((batch_size,), real_label, device=device)
-        #Forward propagate real batch through D.
-        output = netD(real_cpu)
-        #Calculate loss on real batch.
-        errD_real = loss(output, label)
-        #Calculate gradients for D in the backward propagation.
-        errD_real.backward()
-        D_x = output.mean().item()
-
-        '''
-        Train with fake batch.
-        '''
-        #Sample batch of latent vectors.
-        noise = torch.randn(batch_size, opt.nz, 1, 1, device=device)
-        #Generate fake image batch with G.
-        fake = netG(noise)
-        label.fill_(fake_label)
-
-        #Classify all fake batch with D.
-        #.detach() is a safer way for the exclusion of subgraphs from gradient computation.
-        output = netD(fake.detach())
-        #Calculate D's loss on fake batch.
-        errD_fake = loss(output, label)
-        #Calculate the gradients for fake batch.
-        errD_fake.backward()
-        D_G_z1 = output.mean().item()
-
-        #Get D's total loss by adding the gradients from the real and fake batches.
-        errD = errD_real + errD_fake
-        #Update D.
-        optimizerD.step()
-
-        """
-        (2) Update G network: maximize log(D(G(z)))
-        """
-        netG.zero_grad()
-        label.fill_(real_label)  # fake labels are real for Generator cost
-        #Since we just updated D, perform another forward propagation of fake batch through D
-        output = netD(fake)
-        #Calculate G's loss based on this output.
-        errG = loss(output, label)
-        #Calculate the gradients for G.
-        errG.backward()
-        D_G_z2 = output.mean().item()
-        #Update G.
-        optimizerG.step()
-
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-              % (epoch, opt.nepoch, i, len(dataset),
-                 errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
-
-        # 新增：每50次迭代收集一次损失
-        if i % 50 == 0:
-            G_losses.append(errG.item())
-            D_losses.append(errD.item())
-
-        if i % 100 == 0:
-            '''
-            #torchvision.utils.save_image(tensor, filename, nrow=8, padding=2, normalize=False,\
-             range=None, scale_each=False, pad_value=0)
-             #Save a given Tensor into an image file.
-            '''
-            torchvision.utils.save_image(real_cpu,
-                    '%s/real_samples.png' % opt.results,
-                    normalize=True)
-            fake = netG(fixed_noise)
-            torchvision.utils.save_image(fake.detach(),
-                    '%s/fake_samples_epoch_%03d.png' % (opt.results, epoch),
-                    normalize=True)
-
-    # 每个epoch结束后保存损失到csv
-    with open(loss_csv_path, "a", newline="") as f:
-        writer = csv.writer(f)
-        # 如果是第一个epoch且第一个batch，写表头
-        if epoch == 0 and len(G_losses) == 1:
-            writer.writerow(["epoch", "iter", "G_loss", "D_loss"])
-        for idx, (g, d) in enumerate(zip(G_losses, D_losses)):
-            writer.writerow([epoch, idx * 50, g, d])
-        # 清空本epoch的损失列表
-        G_losses.clear()
-        D_losses.clear()
-
+def main():
     """
-    Save the trained model.
-    """ 
-    torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.results, epoch))
-    torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.results, epoch))
+    主训练循环
+    """
+    print("Starting Training Loop...")
+    for epoch in range(opt.nepoch):
+        print(f"Epoch [{epoch+1}/{opt.nepoch}]")
+        total_batches = len(dataset)
+        for i, data in enumerate(dataset, 0):
+            """
+            (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
+            """
+            '''
+            Train with real batch.
+            '''
+            netD.zero_grad()
+            #Format batch
+            real_cpu = data[0].to(device)
+            batch_size = real_cpu.size(0)
+            label = torch.full((batch_size,), real_label, device=device, dtype=torch.float)
+            #Forward propagate real batch through D.
+            output = netD(real_cpu)
+            #Calculate loss on real batch.
+            errD_real = loss(output, label)
+            #Calculate gradients for D in the backward propagation.
+            errD_real.backward()
+            D_x = output.mean().item()
 
-    # 新增：每个epoch结束后生成一组图片
-    with torch.no_grad():
-        fake_images = netG(fixed_noise)
-    torchvision.utils.save_image(
-        fake_images.detach(),
-        '%s/fake_samples_epoch_end_%03d.png' % (opt.results, epoch),
-        normalize=True
-    )
+            '''
+            Train with fake batch.
+            '''
+            #Sample batch of latent vectors.
+            noise = torch.randn(batch_size, opt.nz, 1, 1, device=device)
+            #Generate fake image batch with G.
+            fake = netG(noise)
+            label.fill_(fake_label)
+
+            #Classify all fake batch with D.
+            #.detach() is a safer way for the exclusion of subgraphs from gradient computation.
+            output = netD(fake.detach())
+            #Calculate D's loss on fake batch.
+            errD_fake = loss(output, label)
+            #Calculate the gradients for fake batch.
+            errD_fake.backward()
+            D_G_z1 = output.mean().item()
+
+            #Get D's total loss by adding the gradients from the real and fake batches.
+            errD = errD_real + errD_fake
+            #Update D.
+            optimizerD.step()
+
+            """
+            (2) Update G network: maximize log(D(G(z)))
+            """
+            netG.zero_grad()
+            label.fill_(real_label)  # fake labels are real for Generator cost
+            #Since we just updated D, perform another forward propagation of fake batch through D
+            output = netD(fake)
+            #Calculate G's loss based on this output.
+            errG = loss(output, label)
+            #Calculate the gradients for G.
+            errG.backward()
+            D_G_z2 = output.mean().item()
+            #Update G.
+            optimizerG.step()
+
+            # 在每个batch显示进度
+            progress = (i + 1) / total_batches * 100
+            print(f"Epoch [{epoch+1}/{opt.nepoch}] Batch [{i+1}/{total_batches}] ({progress:.1f}%)", end='\r')
+            print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+                  % (epoch, opt.nepoch, i, len(dataset),
+                     errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+
+            # 新增：每50次迭代收集一次损失
+            if i % 50 == 0:
+                G_losses.append(errG.item())
+                D_losses.append(errD.item())
+
+            if i % 100 == 0:
+                '''
+                #torchvision.utils.save_image(tensor, filename, nrow=8, padding=2, normalize=False,\
+                 range=None, scale_each=False, pad_value=0)
+                 #Save a given Tensor into an image file.
+                '''
+                torchvision.utils.save_image(real_cpu,
+                        '%s/real_samples.png' % opt.results,
+                        normalize=True)
+                fake = netG(fixed_noise)
+                torchvision.utils.save_image(fake.detach(),
+                        '%s/fake_samples_epoch_%03d.png' % (opt.results, epoch),
+                        normalize=True)
+
+        print()  # 每个epoch结束换行
+        # 每个epoch结束后保存损失到csv
+        with open(loss_csv_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            # 如果是第一个epoch且第一个batch，写表头
+            if epoch == 0 and len(G_losses) == 1:
+                writer.writerow(["epoch", "iter", "G_loss", "D_loss"])
+            for idx, (g, d) in enumerate(zip(G_losses, D_losses)):
+                writer.writerow([epoch, idx * 50, g, d])
+            # 清空本epoch的损失列表
+            G_losses.clear()
+            D_losses.clear()
+
+        """
+        Save the trained model.
+        """ 
+        torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.results, epoch))
+        torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.results, epoch))
+
+        # 新增：每个epoch结束后生成一组图片
+        with torch.no_grad():
+            fake_images = netG(fixed_noise)
+        torchvision.utils.save_image(
+            fake_images.detach(),
+            '%s/fake_samples_epoch_end_%03d.png' % (opt.results, epoch),
+            normalize=True
+        )
+
+if __name__ == "__main__":
+    main()
