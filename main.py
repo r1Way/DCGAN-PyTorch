@@ -1,25 +1,36 @@
-import torch            # This line is not necessary or line 5 is not necessary.
+import torch
 import argparse
 import os
 import random
-import torch.utils.data  # This line is not necessary.
-import torchvision.utils # 'import torchvision' is okay.
+import torchvision.utils
 from Generator import Generator
 from Discriminator import Discriminator
+from torchvision import transforms
+import csv
 
+# 固定参数
+batch_size = 128
+image_size = 64
+nc = 3
+nz = 100
+ngf = 64
+ndf = 64
+num_epochs = 10
+lr = 0.0002
+beta1 = 0.5
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', required=True, help='cifar10 | lsun | mnist |imagenet | folder | lfw | fake')
-parser.add_argument('--dataroot', default='./data', help='path to the root of dataset')
+parser.add_argument('--dataset', default='faces', help='faces')
+parser.add_argument('--dataroot', default='./faces/faces', help='path to the root of dataset')
 parser.add_argument('--workers', type=int, default=2, help='number of worker threads for loading the data with Dataloader')
-parser.add_argument('--batch_size', type=int, default=64, help='batch size used in training')
-parser.add_argument('--img_size', type=int, default=64, help='the height / width of the input images used for training')
-parser.add_argument('--nz', type=int, default=100, help='size of the latent vector z')
-parser.add_argument('--ngf', type=int, default=64, help='size of feature maps in G')
-parser.add_argument('--ndf', type=int, default=64, help='size of feature maps in D')
-parser.add_argument('--nepoch', type=int, default=25, help='number of epochs to run')
-parser.add_argument('--lr', type=float, default=0.0002, help='learning rate for training')
-parser.add_argument('--beta1', type=float, default=0.5, help='beta1 hyperparameter for Adam optimizers')
+parser.add_argument('--batch_size', type=int, default=batch_size, help='batch size used in training')
+parser.add_argument('--img_size', type=int, default=image_size, help='the height / width of the input images used for training')
+parser.add_argument('--nz', type=int, default=nz, help='size of the latent vector z')
+parser.add_argument('--ngf', type=int, default=ngf, help='size of feature maps in G')
+parser.add_argument('--ndf', type=int, default=ndf, help='size of feature maps in D')
+parser.add_argument('--nepoch', type=int, default=num_epochs, help='number of epochs to run')
+parser.add_argument('--lr', type=float, default=lr, help='learning rate for training')
+parser.add_argument('--beta1', type=float, default=beta1, help='beta1 hyperparameter for Adam optimizers')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs available')
 parser.add_argument('--dev', type=int, default=1, help='which CUDA device to use')
@@ -33,12 +44,6 @@ print(opt)
 """
 Create a folder to store images and model checkpoints
 """
-'''
-try:
-    os.makedirs(opt.results)
-except OSError:
-    pass
-'''
 if not os.path.exists(opt.results):
     os.mkdir(opt.results)
 
@@ -63,80 +68,28 @@ torch.cuda.set_device(opt.dev)
 """
 Create the dataset.
 """
-'''
-#torchvision.datasets.ImageFolder(root, transform=None, target_transform=None, \
- loader=<function default_loader>, is_valid_file=None)
- #root: Root directory path.
- #transform: transform (callable, optional): A function/transform that takes in \
-   #an PIL image and returns a transformed version. 
-'''
-'''
-torchvision.datasets: contains a lot of datasets
-'''
-'''
-#torchvision.transforms.Compose(transforms): Composes several transforms together.
-#torchvision.transforms.Resize(size, interpolation=2): Resize the input PIL Image to the given size.
- #interpolation: Desired interpolation. Default is PIL.Image.BILINEAR.
-#torchvision.transforms.CenterCrop(size): Crops the given PIL Image at the center.\
-#torchvision.transforms.ToTensor(): Convert a PIL Image or numpy.ndarray to tensor.
-#torchvision.transforms.Normalize(mean, std, inplace=False):Normalize a tensor image with mean and standard deviation. \
- #Given mean: (M1,...,Mn) and std: (S1,..,Sn) for n channels, this transform will normalize each channel of the input.
- #mean: Sequence of means for each channel.
- #std : Sequence of standard deviations for each channel.
-'''
-if opt.dataset in ['imagenet', 'folder', 'lfw']:
-    # folder dataset
-    dataset = torchvision.datasets.ImageFolder(root=opt.dataroot,
-                               transform=torchvision.transforms.Compose([
-                                   torchvision.transforms.Resize(opt.img_size),
-                                   torchvision.transforms.CenterCrop(opt.img_size),
-                                   torchvision.transforms.ToTensor(),
-                                   torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                               ]))
-    nc=3
-elif opt.dataset == 'lsun':
-    dataset = torchvision.datasets.LSUN(root=opt.dataroot, classes=['bedroom_train'],
-                        transform=torchvision.transforms.Compose([
-                            torchvision.transforms.Resize(opt.img_size),
-                            torchvision.transforms.CenterCrop(opt.img_size),
-                            torchvision.transforms.ToTensor(),
-                            torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                        ]))
-    nc=3
-elif opt.dataset == 'cifar10':
-    dataset = torchvision.datasets.CIFAR10(root=opt.dataroot, download=True,
-                           transform=torchvision.transforms.Compose([
-                               torchvision.transforms.Resize(opt.img_size),
-                               torchvision.transforms.ToTensor(),
-                               torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                           ]))
-    nc=3
+# 只支持 faces 数据集
+# 数据增强操作，参考 MindSpore 代码
+transform = transforms.Compose([
+    transforms.Resize(image_size),           # Resize
+    transforms.CenterCrop(image_size),       # CenterCrop
+    transforms.ToTensor(),                   # HWC2CHW + [0,1]
+    # 去掉 Normalize，仅归一化到 [0,1]
+])
 
-elif opt.dataset == 'mnist':
-    dataset = torchvision.datasets.MNIST(root=opt.dataroot, download=True,
-                       transform=torchvision.transforms.Compose([
-                           torchvision.transforms.Resize(opt.img_size),
-                           torchvision.transforms.ToTensor(),
-                           torchvision.transforms.Normalize((0.5,), (0.5,)),
-                       ]))
-    nc=1
+# 创建数据集
+dataset = torchvision.datasets.ImageFolder(
+    root=opt.dataroot,
+    transform=transform
+)
+nc = 3
 
-elif opt.dataset == 'fake':
-    dataset = torchvision.datasets.FakeData(image_size=(3, opt.img_size, opt.img_size),
-                            transform=torchvision.transforms.ToTensor())
-    nc=3
-
-assert dataset
-'''
-Create the dataloader.
-#torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, sampler=None, batch_sampler=None, num_workers=0,\
- collate_fn=<function default_collate>, pin_memory=False, drop_last=False, timeout=0, worker_init_fn=None)
- #batch_size: how many samples per batch to load.
- #shuffle: set to True to have the data reshuffled at every epoch.
- #num_workers: how many subprocesses to use for data loading. 0 means that the data will be loaded in the main process.
-'''
-dataset = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size,
-                                         shuffle=True, num_workers=int(opt.workers))
+dataset = torch.utils.data.DataLoader(
+    dataset,
+    batch_size=opt.batch_size,
+    shuffle=True,
+    num_workers=int(opt.workers)
+)
 
 """
 Custom weights initialization called on netG and netD.
@@ -179,20 +132,12 @@ print(netD)
 A Binary Cross Entropy loss is used and two Adam optimizers are responsible for updating 
  netG and netD, respectively. 
 """
-'''
-#torch.nn.BCELoss(weight=None, size_average=None, reduce=None, reduction='mean')
-  #Creates a criterion that measures the Binary Cross Entropy between the target and the output.
-'''
-'''
-#torch.optim.Adam(params, lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
-'''
 loss = torch.nn.BCELoss()
 optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 #Create batch of latent vectors that we will use to visualize
  #the progression of the generator.
- #torch.randn(*sizes, out=None, dtype=None, layout=torch.strided, device=None, requires_grad=False)
 fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
 #Establish convention for real and fake labels during training.
 real_label = 1
@@ -203,6 +148,13 @@ Training.
 """
 #This line may increase the training speed a bit.
 torch.backends.cudnn.benchmark = True
+
+# 新增：用于收集损失的列表
+G_losses = []
+D_losses = []
+
+# 新增：定义csv文件路径
+loss_csv_path = os.path.join(opt.results, "losses.csv")
 
 print("Starting Training Loop...")
 for epoch in range(opt.nepoch):
@@ -268,6 +220,11 @@ for epoch in range(opt.nepoch):
               % (epoch, opt.nepoch, i, len(dataset),
                  errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
+        # 新增：每50次迭代收集一次损失
+        if i % 50 == 0:
+            G_losses.append(errG.item())
+            D_losses.append(errD.item())
+
         if i % 100 == 0:
             '''
             #torchvision.utils.save_image(tensor, filename, nrow=8, padding=2, normalize=False,\
@@ -282,8 +239,29 @@ for epoch in range(opt.nepoch):
                     '%s/fake_samples_epoch_%03d.png' % (opt.results, epoch),
                     normalize=True)
 
+    # 每个epoch结束后保存损失到csv
+    with open(loss_csv_path, "a", newline="") as f:
+        writer = csv.writer(f)
+        # 如果是第一个epoch且第一个batch，写表头
+        if epoch == 0 and len(G_losses) == 1:
+            writer.writerow(["epoch", "iter", "G_loss", "D_loss"])
+        for idx, (g, d) in enumerate(zip(G_losses, D_losses)):
+            writer.writerow([epoch, idx * 50, g, d])
+        # 清空本epoch的损失列表
+        G_losses.clear()
+        D_losses.clear()
+
     """
     Save the trained model.
     """ 
     torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.results, epoch))
     torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.results, epoch))
+
+    # 新增：每个epoch结束后生成一组图片
+    with torch.no_grad():
+        fake_images = netG(fixed_noise)
+    torchvision.utils.save_image(
+        fake_images.detach(),
+        '%s/fake_samples_epoch_end_%03d.png' % (opt.results, epoch),
+        normalize=True
+    )
