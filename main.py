@@ -7,6 +7,8 @@ from Generator import Generator
 from Discriminator import Discriminator
 from torchvision import transforms
 import csv
+from tqdm import tqdm  # 新增
+import time  # 新增
 
 
 
@@ -158,7 +160,8 @@ def main():
     for epoch in range(opt.nepoch):
         print(f"Epoch [{epoch+1}/{opt.nepoch}]")
         total_batches = len(dataset)
-        for i, data in enumerate(dataset, 0):
+        start_time = time.time()  # 记录epoch开始时间
+        for i, data in enumerate(tqdm(dataset, desc=f"Epoch {epoch+1}", ncols=80), 0):
             """
             (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             """
@@ -216,11 +219,9 @@ def main():
             #Update G.
             optimizerG.step()
 
-            # 在每个batch显示进度
-            progress = (i + 1) / total_batches * 100
-            print(f"Epoch [{epoch+1}/{opt.nepoch}] Batch [{i+1}/{total_batches}] ({progress:.1f}%)", end='\r')
+            # tqdm会自动显示进度，无需手动打印batch进度
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-                  % (epoch, opt.nepoch, i, len(dataset),
+                  % (epoch, opt.nepoch, i, total_batches,
                      errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
             # 新增：每50次迭代收集一次损失
@@ -242,6 +243,8 @@ def main():
                         '%s/fake_samples_epoch_%03d.png' % (opt.results, epoch),
                         normalize=True)
 
+        epoch_time = time.time() - start_time
+        print(f"Epoch [{epoch+1}] 用时: {epoch_time:.2f} 秒")
         print()  # 每个epoch结束换行
         # 每个epoch结束后保存损失到csv
         with open(loss_csv_path, "a", newline="") as f:
