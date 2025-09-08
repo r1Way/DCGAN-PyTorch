@@ -156,6 +156,11 @@ def main():
     # 新增：定义csv文件路径
     loss_csv_path = os.path.join(opt.results, "losses.csv")
 
+    # 选取一张真实图片（如第一张），并生成一个固定噪声
+    single_real_img, _ = dataset.dataset[0]  # 注意这里 dataset.dataset 是 ImageFolder
+    single_real_img = single_real_img.unsqueeze(0).to(device)  # 加 batch 维度
+    single_noise = torch.randn(1, opt.nz, 1, 1, device=device)
+
     print("Starting Training Loop...")
     for epoch in range(opt.nepoch):
         print(f"Epoch [{epoch+1}/{opt.nepoch}]")
@@ -264,14 +269,27 @@ def main():
         torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.results, epoch))
         torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.results, epoch))
 
-        # 新增：每个epoch结束后生成一组图片
+        # 新增：每个epoch结束后生成一张特定噪声的图片
         with torch.no_grad():
+            single_fake_img = netG(single_noise)
             fake_images = netG(fixed_noise)
         torchvision.utils.save_image(
-            fake_images.detach(),
-            '%s/fake_samples_epoch_end_%03d.png' % (opt.results, epoch),
+            single_fake_img.detach(),
+            f"{opt.results}/single_sample_epoch_{epoch:03d}.png",
             normalize=True
         )
+        torchvision.utils.save_image(
+            fake_images.detach(),
+            f"{opt.results}/fake_samples_epoch_end_{epoch:03d}.png",
+            normalize=True
+        )
+        # 可选：也保存真实图片用于对比（只保存一次）
+        if epoch == 0:
+            torchvision.utils.save_image(
+                single_real_img,
+                f"{opt.results}/single_real_sample.png",
+                normalize=True
+            )
 
 if __name__ == "__main__":
     main()

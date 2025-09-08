@@ -20,22 +20,25 @@
 - torchvision
 - matplotlib
 - 其他依赖见 environment.yml
+- GPU 4060 laptop
 
 ## 目录结构
 
 ```
 DCGAN-PyTorch/
-├── main.py                # 主训练脚本
-├── test_main.py           # 测试脚本
-├── Generator.py           # 生成器网络
-├── Discriminator.py       # 判别器网络
-├── plot_loss.py           # 损失曲线可视化
-├── download_lsun.py       # LSUN数据集下载工具(原仓库数据集代码，本实验并不使用)
-├── faces/                 # 人脸图片数据集（需自行准备）
-├── results/               # 训练结果（模型和图片）
-├── .gitignore             # Git忽略配置
-└── README.md              # 项目说明
-└── environment.yml        # 环境配置文件
+├── main.py                 # 主训练脚本
+├── test_main.py            # 测试脚本
+├── Generator.py            # 生成器网络
+├── Discriminator.py        # 判别器网络
+├── plot_loss.py            # 损失曲线可视化
+├── download_lsun.py        # LSUN数据集下载工具(原仓库数据集代码，本实验并不使用)
+├── crop_from_grid.py       # 图片裁剪工
+├── batch_crop_from_grid.py # 批量图片裁剪工具
+├── faces/                  # 人脸图片数据集（需自行准备）
+├── results/                # 训练结果（模型和图片）
+├── .gitignore              # Git忽略配置
+├── README.md               # 项目说明
+└── environment.yml         # 环境配置文件
 ```
 
 ## 快速开始
@@ -62,6 +65,8 @@ python test_main.py
 - 仅用部分数据进行快速测试。
 
 ### 3. 训练模型
+
+一个epoch大概10分钟。
 
 ```bash
 python main.py
