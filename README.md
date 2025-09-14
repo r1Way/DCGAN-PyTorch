@@ -15,6 +15,7 @@
 
 ## 环境
 
+- conda activate cartoon （本人的虚拟环境名字）
 - Python 3.11.11
 - PyTorch
 - torchvision
@@ -66,7 +67,7 @@ python test_main.py
 
 ### 3. 训练模型
 
-一个epoch大概10分钟。
+一个 epoch 大概 10 分钟。
 
 ```bash
 python main.py
