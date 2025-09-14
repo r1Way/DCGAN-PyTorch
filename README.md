@@ -27,19 +27,43 @@
 
 ```
 DCGAN-PyTorch/
-├── main.py                 # 主训练脚本
-├── test_main.py            # 测试脚本
-├── Generator.py            # 生成器网络
-├── Discriminator.py        # 判别器网络
-├── plot_loss.py            # 损失曲线可视化
-├── download_lsun.py        # LSUN数据集下载工具(原仓库数据集代码，本实验并不使用)
-├── crop_from_grid.py       # 图片裁剪工
-├── batch_crop_from_grid.py # 批量图片裁剪工具
-├── faces/                  # 人脸图片数据集（需自行准备）
-├── results/                # 训练结果（模型和图片）
-├── .gitignore              # Git忽略配置
-├── README.md               # 项目说明
-└── environment.yml         # 环境配置文件
+├── main.py                      # 主训练脚本
+├── test_main.py                 # 测试脚本
+├── Generator.py                 # 生成器网络
+├── Discriminator.py             # 判别器网络
+├── plot_loss.py                 # 损失曲线可视化
+├── download_lsun.py             # LSUN数据集下载工具(原仓库数据集代码，本实验并不使用)
+├── crop_from_grid.py            # 单张图片裁剪工具
+├── batch_crop_from_grid.py      # 批量图片裁剪工具
+├── paper_grid.py                # 网格图生成脚本
+├── paper_comparison.py          # 多epoch对比图生成脚本
+├── paper_progression.py         # 逐步演化图生成脚本
+├── paper_gif.py                 # GIF动画生成脚本
+├── faces/                       # 人脸图片数据集（需自行准备）
+│   └── faces/                   # 动漫头像图片子文件夹
+│       └── class1/              # 图片类别文件夹
+│           ├── 0.jpg
+│           ├── 1.jpg
+│           └── ...
+├── results/                     # 训练结果（模型和图片）
+│   ├── netG_epoch_xxx.pth       # 生成器模型
+│   ├── netD_epoch_xxx.pth       # 判别器模型
+│   ├── fake_samples_epoch_xxx.png      # 训练中生成的图片
+│   ├── fake_samples_epoch_end_xxx.png  # 每个epoch结束时生成的图片
+│   ├── single_sample_epoch_xxx.png     # 单一噪声生成的图片
+│   ├── single_real_sample.png          # 对比用真实图片
+│   ├── losses.csv                      # 损失记录
+│   └── loss_curve.png                  # 损失曲线图
+├── crop/                        # 批量裁剪后的小图
+├── paper/                       # 论文/展示用图片输出目录
+│   ├── grid.png                 # 网格图
+│   ├── comparison.png           # 多epoch对比图
+│   ├── progression.png          # 逐步演化图
+│   └── progression.gif          # 演化GIF动画
+├── .gitignore                   # Git忽略配置
+├── README.md                    # 项目说明
+├── environment.yml              # 环境配置文件
+└── .idea/                       # IDE配置文件夹
 ```
 
 ## 快速开始
