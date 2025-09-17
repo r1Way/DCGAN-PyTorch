@@ -116,6 +116,32 @@ python use_netG.py --model_path ./netG_epoch_59.pth --output ./results/sample_fr
 
 - 使用根目录下的 `netG_epoch_59.pth` 生成图片，输出到指定路径。
 
+## 效果展示
+
+下图为本项目生成的部分结果示例：
+
+**网格图（多张生成图片拼接）**
+![grid](paper/grid.png)
+
+**多 epoch 对比图**
+![comparison](paper/comparison.png)
+
+**逐步演化图**
+![progression](paper/progression.png)
+
+**演化 GIF 动画**
+![progression_gif](paper/progression.gif)
+
+### 使用 use_netG.py 生成图片
+
+你可以直接使用根目录下的 `use_netG.py` 脚本，加载已训练好的生成器模型（如 `netG_epoch_59.pth`），快速生成图片：
+
+```bash
+python use_netG.py --model_path ./netG_epoch_59.pth --output ./sample_from_59.png
+```
+
+- 可通过 `--num` 参数指定生成图片数量，`--output` 指定输出路径。
+
 ## 参数说明（main.py）
 
 - `--dataroot` 数据集根目录
