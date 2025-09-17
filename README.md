@@ -121,16 +121,16 @@ python use_netG.py --model_path ./netG_epoch_59.pth --output ./results/sample_fr
 下图为本项目生成的部分结果示例：
 
 **网格图（多张生成图片拼接）**
+
 ![grid](paper/grid.png)
 
 **多 epoch 对比图**
+
 ![comparison](paper/comparison.png)
 
-**逐步演化图**
-![progression](paper/progression.png)
-
 **演化 GIF 动画**
-![progression_gif](paper/progression.gif)
+
+![progression_gif](paper/change.gif)
 
 ### 使用 use_netG.py 生成图片
 
