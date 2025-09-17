@@ -60,6 +60,7 @@ DCGAN-PyTorch/
 │   ├── comparison.png           # 多epoch对比图
 │   ├── progression.png          # 逐步演化图
 │   └── progression.gif          # 演化GIF动画
+├── use_netG.py                  # 使用根目录 netG_epoch_59.pth 生成图片的脚本
 ├── .gitignore                   # Git忽略配置
 ├── README.md                    # 项目说明
 ├── environment.yml              # 环境配置文件
@@ -106,6 +107,14 @@ python plot_loss.py
 ```
 
 - 生成 `results/loss_curve.png`。
+
+### 5. 使用指定生成器模型生成图片
+
+```bash
+python use_netG.py --model_path ./netG_epoch_59.pth --output ./results/sample_from_59.png
+```
+
+- 使用根目录下的 `netG_epoch_59.pth` 生成图片，输出到指定路径。
 
 ## 参数说明（main.py）
 
